@@ -1,0 +1,52 @@
+# Базовые игнорируемые файлы
+.DS_Store
+*.log
+*.tmp
+*.swp
+*~
+.idea/
+.vscode/
+__pycache__/
+node_modules/
+
+# Fabric специфичные артефакты
+## Криптографические материалы
+organizations/peerOrganizations/
+organizations/ordererOrganizations/
+!organizations/peerOrganizations/org1.example.com/peers/ # исключение для структуры каталогов
+
+## Артефакты каналов
+channel-artifacts/*
+!channel-artifacts/.gitkeep
+
+## Системные блоки
+system-genesis-block/
+!system-genesis-block/.gitkeep
+
+## Данные цепочки
+ledgers/
+chaincode/__MACOSX
+
+# Docker и сгенерированные файлы
+docker-compose.override.yml
+.env
+*.tar.gz
+mycc.tar.gz
+
+vendor/
+
+# Локальные настройки
+config/connection-*.yaml
+config/*_sk # приватные ключи
+
+# Резервные копии
+*.bak
+*.old
+
+# Специфичные для ОС
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Тестовые данные
+test/data/
