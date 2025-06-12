@@ -1,0 +1,146 @@
+0.Предподготовка
+
+    Заменить 172.22.120.79 на реальный IP
+
+    Для ПК2 и ПК3 использовать соответствующие IP в docker-compose-peer*.yaml
+
+    В extra_hosts указать IP ПК1 для всех DNS-имен
+
+    Для копирования файлов между машинами может потребоваться настройка SSH-ключей
+
+    Проверить открытость портов в firewall ( 7050, 7051, 7054 )
+
+    Запустить скрипт ./add_paths.sh <путь до папки bin в проекте>
+
+    добавить разрешающие правила firewall
+        # На всех машинах
+        sudo ufw allow 7050:7054/tcp
+        sudo ufw allow 9051:9053/tcp
+        sudo ufw allow 10051:10053/tcp
+        sudo ufw reload
+
+1. Генерация базовых сертификатов
+
+    # Генерация корневых сертификатов
+    cryptogen generate --config=./config/crypto-config.yaml --output=./organizations
+
+    # Генерация genesis-блока
+    configtxgen -configPath ./config -profile OneOrgOrdererGenesis -channelID system-channel -outputBlock ./channel-artifacts/genesis.block
+
+    # Генерация channel.tx
+    configtxgen -configPath ./config -profile ChannelOne -outputCreateChannelTx ./channel-artifacts/channel.tx -channelID mychannel
+
+2. Запуск CA и генерация пользователей
+
+    # Запуск CA
+    docker-compose up -d ca.org1.example.com
+
+    # Регистрация администратора
+    docker exec fabric-network_ca.org1.example.com_1 fabric-ca-client register \
+      --id.name admin \
+      --id.secret adminpw \
+      --id.type admin \
+      --id.attrs 'hf.Registrar.Roles=admin'
+
+    # Энролл администратора
+    docker exec fabric-network_ca.org1.example.com_1 fabric-ca-client enroll \
+      -u http://admin:adminpw@localhost:7054 \
+      --mspdir /etc/hyperledger/fabric-ca-server/admin/msp
+
+    # Регистрация пиров
+    for peer in peer0 peer1 peer2; do
+      docker exec fabric-network_ca.org1.example.com_1 fabric-ca-client register \
+        --id.name $peer \
+        --id.secret peerpw \
+        --id.type peer \
+        --id.attrs 'hf.Registrar.Roles=peer'
+    done
+
+3. Генерация MSP для пиров
+
+    for peer in peer0 peer1 peer2; do
+    # Создание директорий на хосте
+    mkdir -p ./organizations/peerOrganizations/org1.example.com/peers/${peer}.org1.example.com/msp
+    
+    # Генерация MSP
+    docker exec fabric-network_ca.org1.example.com_1 fabric-ca-client enroll \
+        -u http://${peer}:peerpw@localhost:7054 \
+        --csr.hosts "${peer}.org1.example.com,172.22.120.79" \
+        --mspdir /etc/hyperledger/fabric-ca-server/peers/${peer}.org1.example.com/msp
+    
+    # Копирование MSP на хост
+    docker cp fabric-network_ca.org1.example.com_1:/etc/hyperledger/fabric-ca-server/peers/${peer}.org1.example.com/msp \
+        ./organizations/peerOrganizations/org1.example.com/peers/${peer}.org1.example.com/
+    done
+
+    # Добавление сертификатов администратора
+    for peer in peer0 peer1 peer2; do
+    mkdir ./organizations/peerOrganizations/org1.example.com/peers/${peer}.org1.example.com/msp/admincerts
+    cp ./organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/signcerts/* \
+        ./organizations/peerOrganizations/org1.example.com/peers/${peer}.org1.example.com/msp/admincerts/
+    done
+
+4. Запуск основной сети
+
+    копирование соответствующего файла docker-compose-peer* для каждого из ПК
+    # Запуск orderer и peer0 на ПК1
+    docker-compose up -d
+
+    # Запуск peer1 на ПК2
+    scp -r organizations/peerOrganizations/org1.example.com/peers/peer1.org1.example.com user@pc2:~/fabric-network/organizations/peerOrganizations/org1.example.com/peers/
+    ssh user@pc2 "cd ~/fabric-network && docker-compose -f docker-compose-peer1.yaml up -d"
+
+    # Запуск peer2 на ПК3
+    scp -r organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com user@pc3:~/fabric-network/organizations/peerOrganizations/org1.example.com/peers/
+    ssh user@pc3 "cd ~/fabric-network && docker-compose -f docker-compose-peer2.yaml up -d"
+
+5. Создание канала и присоединение пиров
+
+    # Создание канала
+    docker exec peer0.org1.example.com peer channel create \
+    -o orderer.example.com:7050 \
+    -c mychannel \
+    -f ./channel-artifacts/channel.tx \
+    --outputBlock /tmp/mychannel.block
+
+    # Присоединение пиров
+    docker exec peer0.org1.example.com peer channel join -b /tmp/mychannel.block
+    ssh user@pc2 "docker exec peer1.org1.example.com peer channel join -b /tmp/mychannel.block"
+    ssh user@pc3 "docker exec peer2.org1.example.com peer channel join -b /tmp/mychannel.block"
+
+6. Установка и активация chaincode
+
+    # Упаковка chaincode
+    docker exec peer0.org1.example.com peer lifecycle chaincode package mycc.tar.gz \
+    --path /var/gopath/src/chaincode \
+    --lang golang \
+    --label mycc_1.0
+
+    # Копирование на другие пиры
+    docker cp peer0.org1.example.com:/var/gopath/src/mycc.tar.gz .
+    scp mycc.tar.gz user@pc2:~/fabric-network/
+    scp mycc.tar.gz user@pc3:~/fabric-network/
+
+    # Установка на всех пирах
+    for peer in peer0 peer1 peer2; do
+    if [ "$peer" = "peer0" ]; then
+        docker exec peer0.org1.example.com peer lifecycle chaincode install mycc.tar.gz
+    else
+        ssh user@pc$(( ${peer:4:1} + 1 )) "docker exec ${peer}.org1.example.com peer lifecycle chaincode install mycc.tar.gz"
+    fi
+    done
+
+    # Активация chaincode (выполняется на любом пире)
+    docker exec peer0.org1.example.com peer lifecycle chaincode approveformyorg ...
+    docker exec peer0.org1.example.com peer lifecycle chaincode commit ...
+
+7. Тестирование
+
+    # Запись данных через peer0
+    docker exec peer0.org1.example.com peer chaincode invoke ... -c '{"Args":["Set","a","100"]}'
+
+    # Чтение данных через peer1
+    ssh user@pc2 "docker exec peer1.org1.example.com peer chaincode query ... -c '{"Args":["Get","a"]}'"
+
+8. Удаление компонентов
+    Требуетс вызвать скрипт ./reset_fabric.sh
