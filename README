@@ -141,3 +141,6 @@
 
     # Чтение данных через peer1
     ssh user@pc2 "docker exec peer1.org1.example.com peer chaincode query ... -c '{"Args":["Get","a"]}'"
+
+8. Удаление компонентов
+    Требуетс вызвать скрипт ./reset_fabric.sh
