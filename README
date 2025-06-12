@@ -112,12 +112,12 @@
 
     # Упаковка chaincode
     docker exec peer0.org1.example.com peer lifecycle chaincode package mycc.tar.gz \
-    --path /opt/gopath/src/chaincode \
+    --path /var/gopath/src/chaincode \
     --lang golang \
     --label mycc_1.0
 
     # Копирование на другие пиры
-    docker cp peer0.org1.example.com:/opt/gopath/src/mycc.tar.gz .
+    docker cp peer0.org1.example.com:/var/gopath/src/mycc.tar.gz .
     scp mycc.tar.gz user@pc2:~/fabric-network/
     scp mycc.tar.gz user@pc3:~/fabric-network/
 

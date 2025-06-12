@@ -17,6 +17,7 @@ services:
       - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/genesis.block
     volumes:
       - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/genesis.block  # Правильный путь
+      - ./chaincode:/var/gopath/src/chaincode
       - ./organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/var/hyperledger/orderer/tls
       - ./organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/var/hyperledger/orderer/msp
     ports:

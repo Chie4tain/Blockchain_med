@@ -25,6 +25,7 @@ services:
       - FABRIC_CFG_PATH=/etc/hyperledger/fabric
     volumes:
       - /var/run/docker.sock:/host/var/run/docker.sock
+      - ./chaincode:/var/gopath/src/chaincode
       - ./organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/tls:/etc/hyperledger/fabric/tls
       - peer2.org1.example.com:/var/hyperledger/production
