@@ -1,6 +1,6 @@
 Organizations:
   - &OrdererOrg
-    Name: OrdererMSP
+    Name: OrdererOrg
     ID: OrdererMSP
     MSPDir: ../organizations/ordererOrganizations/example.com/msp
     Policies:
@@ -28,6 +28,9 @@ Organizations:
       Admins:
         Type: Signature
         Rule: "OR('Org1MSP.admin')"
+    AnchorPeers:
+      - Host: peer0.org1.example.com
+        Port: 7051
 
 Capabilities:
   Channel: &ChannelCapabilities
@@ -54,12 +57,18 @@ Orderer: &OrdererDefaults
   OrdererType: etcdraft
   Addresses:
     - orderer.example.com:7050
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
   EtcdRaft:
     Consenters:
       - Host: orderer.example.com
         Port: 7050
         ClientTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
         ServerTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+  Organizations:
   Policies:
     Readers:
       Type: ImplicitMeta
@@ -89,7 +98,7 @@ Channel: &ChannelDefaults
     <<: *ChannelCapabilities
 
 Profiles:
-  OneOrgOrdererGenesis:
+  SampleMultiNodeEtcdRaft:
     <<: *ChannelDefaults
     Orderer:
       <<: *OrdererDefaults
@@ -102,7 +111,7 @@ Profiles:
         Organizations:
           - *Org1
 
-  ChannelOne:
+  SampleSingleMSPChannel:
     <<: *ChannelDefaults
     Consortium: SampleConsortium
     Application:
