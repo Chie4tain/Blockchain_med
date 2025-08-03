@@ -1,44 +1,30 @@
-version: '3.7'
+version: '3.9'
 
 networks:
-  fabric-net:
+  fabric_net:
     external: true
-    name: fabric-network_fabric-net
+    name: fabric_fabric_net
 
 services:
-  peer2.org1.example.com:
-    container_name: peer2.org1.example.com
-    image: hyperledger/fabric-peer:2.4.9
+  peer0_org3:
+    image: hyperledger/fabric-peer:2.4.4
+    hostname: peer0.org3.example.com
     environment:
-      - FABRIC_LOGGING_SPEC=INFO
-      - CORE_PEER_ID=peer2.org1.example.com
-      - CORE_PEER_ADDRESS=peer2.org1.example.com:7051
-      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
-      - CORE_PEER_CHAINCODEADDRESS=peer2.org1.example.com:7052
-      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.example.com:7051
-      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer2.org1.example.com:7051
-      - CORE_PEER_LOCALMSPID=Org1MSP
-      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
-      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fabric-network_fabric-net
-      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
-      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - CORE_PEER_ID=peer0.org3.example.com
+      - CORE_PEER_ADDRESS=peer0.org3.example.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org3.example.com:9052  # Используем FQDN вместо 0.0.0.0
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org3.example.com:9051
+      - CORE_PEER_LOCALMSPID=Org3MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=false  # Временно отключено для отладки
     volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock
-      - ./chaincode:/var/gopath/src/chaincode
-      - ./organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/msp:/etc/hyperledger/fabric/msp
-      - ./organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/tls:/etc/hyperledger/fabric/tls
-      - peer2.org1.example.com:/var/hyperledger/production
-    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
-    command: peer node start
+      - ./organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com:/etc/hyperledger/peer
     ports:
-      - 10051:7051
-      - 10052:7052
-      - 10053:7053
-    extra_hosts:
-      - "orderer.example.com:IP_PC1"
-      - "peer0.org1.example.com:IP_PC1"
-      - "peer1.org1.example.com:IP_PC2"
-      - "peer2.org1.example.com:IP_PC3"
+      - "9051:9051"
+      - "9052:9052"  # Порт для chaincode
     networks:
-      - fabric-net
+      fabric_net:
+        aliases:
+          - peer0.org3.example.com
